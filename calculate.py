@@ -2,6 +2,13 @@ import sys
 import json
 import requests
 import os
+from collections import Counter
+
+# special thanks to chatgpt with gpt-4 for helping out with pretty much everything lol
+# i'm dumb, and don't really do python and stuff :3
+
+# anyways this might be slightly off to nicehash's calculator, because i don't know how they calculate this from the profitability2 endpoint lol.
+# i'm just doing trial and error to see what works/is most accurate :p
 
 # Check if the --debug flag is present in command line arguments
 DEBUG_MODE = '--debug' in sys.argv
@@ -49,14 +56,16 @@ def get_profitability(speeds):
     debug_message("Received profitability2 data")
     return data
 
-# Function to get the list of algorithms from NiceHash
+# Function to get the list of algorithms from NiceHash and create a mapping from code to name
 def get_nicehash_algorithms():
     debug_message("Requesting list of algorithms from NiceHash...")
     response = requests.get('https://api2.nicehash.com/main/api/v2/mining/algorithms')
-    algorithms = response.json()
+    algorithms = response.json()['miningAlgorithms']
     log_response('nicehash_algorithms', algorithms)  # Log the response
     debug_message("Received list of algorithms.")
-    return algorithms
+    # Create a mapping from algorithm code to name
+    algo_code_to_name = {algo['order']: algo['algorithm'] for algo in algorithms}
+    return algo_code_to_name
 
 # Function to print the names of the available algorithms
 def print_available_algorithms(speeds):
@@ -90,20 +99,26 @@ def calculate_average_earnings(values, algorithm_code):
         return "No data for the specified algorithm."
 """
 
-# Function to calculate the average earnings
-def calculate_average_earnings(values):
-    debug_message("Calculating average earnings...")
-    algorithm_entries = [v for v in values.values()]
-    total = sum(entry['p'] for entry in algorithm_entries)
-    average = total / len(algorithm_entries)
-    debug_message(f"Calculated average earnings: {average}")
-    return average
+# Function to calculate the average earnings based on the most common algorithm code
+def calculate_average_earnings(values, algo_code_to_name):
+    debug_message("Calculating average earnings based on the most common algorithm code...")
 
-def get_order_by_algorithm(json_data, algorithm_name):
-    for item in json_data:
-        if item["algorithm"] == algorithm_name:
-            return item["order"]
-    return None  # Return None if algorithm name is not found
+    # Count the frequency of each algorithm code
+    algo_code_counts = Counter(entry.get('a') for entry in values.values() if entry.get('p') > 0)
+    
+    # Find the most common algorithm code
+    most_common_algo_code, _ = algo_code_counts.most_common(1)[0]
+
+    # Get the name of the most common algorithm
+    most_common_algo_name = algo_code_to_name.get(most_common_algo_code, "Unknown Algorithm")
+    debug_message(f"Most common algorithm: {most_common_algo_name} ({most_common_algo_code})")
+
+    # Calculate the earnings for the most common algorithm code
+    algorithm_entries = [entry for entry in values.values() if entry.get('a') == most_common_algo_code]
+    total = sum(entry['p'] for entry in algorithm_entries)
+    average = total / len(algorithm_entries) if algorithm_entries else 0
+    debug_message(f"Calculated average earnings for the most common algorithm: {average}")
+    return average
 
 # Main script execution
 if __name__ == '__main__':
@@ -129,7 +144,7 @@ if __name__ == '__main__':
         # Get profitability data
         profitability = get_profitability(speeds)
 
-        average_earnings = calculate_average_earnings(profitability['values'])
+        average_earnings = calculate_average_earnings(profitability['values'], nicehash_algorithms)
         print(f"Average daily earnings (in BTC) for {selected_device}:")
         print(f"Scientific notation: {average_earnings}")
         print(f"Real (rounded) number: {format(average_earnings, 'f')}")
