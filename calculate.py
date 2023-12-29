@@ -99,8 +99,8 @@ def calculate_average_earnings(values, algorithm_code):
         return "No data for the specified algorithm."
 """
 
-# Function to calculate the average earnings based on the most common algorithm code
-def calculate_average_earnings(values, algo_code_to_name):
+# Function to calculate the average earnings based on the most common algorithm code and across all algorithms
+def calculate_combined_average_earnings(values, algo_code_to_name):
     debug_message("Calculating average earnings based on the most common algorithm code...")
 
     # Count the frequency of each algorithm code
@@ -114,11 +114,20 @@ def calculate_average_earnings(values, algo_code_to_name):
     debug_message(f"Most common algorithm: {most_common_algo_name} ({most_common_algo_code})")
 
     # Calculate the earnings for the most common algorithm code
-    algorithm_entries = [entry for entry in values.values() if entry.get('a') == most_common_algo_code]
-    total = sum(entry['p'] for entry in algorithm_entries)
-    average = total / len(algorithm_entries) if algorithm_entries else 0
-    debug_message(f"Calculated average earnings for the most common algorithm: {average}")
-    return average
+    most_common_algo_entries = [entry for entry in values.values() if entry.get('a') == most_common_algo_code]
+    most_common_algo_total = sum(entry['p'] for entry in most_common_algo_entries)
+    most_common_algo_average = most_common_algo_total / len(most_common_algo_entries) if most_common_algo_entries else 0
+
+    # Calculate the average earnings for all algorithms
+    all_algo_total = sum(entry['p'] for entry in values.values())
+    all_algo_average = all_algo_total / len(values) if values else 0
+
+    # Calculate combined average
+    combined_average = (most_common_algo_average + all_algo_average) / 2
+    debug_message(f"Common algorithm average earnings: {most_common_algo_average}")
+    debug_message(f"All algorithms average earnings: {all_algo_average}")
+    debug_message(f"Combined average earnings: {combined_average}")
+    return combined_average
 
 # Main script execution
 if __name__ == '__main__':
@@ -144,10 +153,11 @@ if __name__ == '__main__':
         # Get profitability data
         profitability = get_profitability(speeds)
 
-        average_earnings = calculate_average_earnings(profitability['values'], nicehash_algorithms)
-        print(f"Average daily earnings (in BTC) for {selected_device}:")
-        print(f"Scientific notation: {average_earnings}")
-        print(f"Real (rounded) number: {format(average_earnings, 'f')}")
+        # Calculate the combined average earnings
+        combined_average_earnings = calculate_combined_average_earnings(profitability['values'], nicehash_algorithms)
+        print(f"Combined average daily earnings (in BTC) for {selected_device}:")
+        print(f"Scientific notation: {combined_average_earnings}")
+        print(f"Real (rounded) number: {format(combined_average_earnings, 'f')}")
 
         """ Commented out, this is for individual algorithm earnings (to which profitability2 for GPUs only returns the earnings for the most profitable algos)
         Will work on later
